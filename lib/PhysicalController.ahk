@@ -29,6 +29,7 @@ class PhysicalController {
 		;front of the string for easier iteration
 		this._aAxes := "XY" . GetKeyState(joyNum . "JoyInfo")
 		;extract hat info if present
+		this._hatInfo := ""
 		if (InStr(this._aAxes, "P")) {
 			this._aAxes := StrReplace(this._aAxes, "P")
 			this._hatInfo .= "P"
@@ -43,19 +44,16 @@ class PhysicalController {
 		}
 		
 		this._buttonNames := []
-		loop (this.ButtonCount) {
-			this.ButtonNames[A_Index] := this._ahkJoyID . "Joy" . A_Index
-		}
+		loop (this.ButtonCount)
+			this._buttonNames.push(this._ahkJoyID . "Joy" . A_Index)
 	}
 	
 	;PROPERTIES
-	;get this controller's joyID
 	JoyID => this._ahkJoyID
 	
 	;get the registry key
 	RegKey => Format("{1}VID_{2:04X}&PID_{3:04X}\", PhysicalController.RegistryLocation, JoyGetDevCaps.GetPropValue(this._ahkJoyID, "wMid"), JoyGetDevCaps.GetPropValue(this._ahkJoyID, "wPid"))
 	
-	;get the registry OEM Name
 	Name => RegRead(this.RegKey, "OEMName", "unknown controller")
 	
 	HasHat => InStr(this._hatInfo, "P")
@@ -91,10 +89,10 @@ class PhysicalController {
 	; Bind buttons as hotkeys
 	BindButtons(bKeys) {
 		this._buttonKeys := []
-		for (butNm in this._buttonNames) {
-			if (bKeys.%butNm% != "") {
-				this._buttonKeys[A_Index] := bKeys.%butNm%
-				Hotkey(buttonName, Func(this.Callback_ButtonPress).Bind(A_Index))
+		for (btnNm in this._buttonNames) {
+			if (bKeys.%btnNm% != "") {
+				this._buttonKeys[A_Index] := bKeys.%btnNm%
+				Hotkey(btnNm, Func(this.Callback_ButtonPress).Bind(A_Index))
 			}
 		}
 	}

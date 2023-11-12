@@ -3,6 +3,84 @@
 #include "HB_Vector.ahk"
 
 
+; EGSControlMap 1
+; For more info on what to put in for keys, visit: https://www.autohotkey.com/docs/KeyList.htm
+cMap1 := new EGSControlMap()
+cMap1.Axes.Yaw.AxisID := "R"
+cMap1.Axes.Yaw.Sensitivity := 0.5
+cMap1.Axes.Yaw.Deadzone := 20
+   
+cMap1.Axes.Pitch.AxisID := "Y"
+cMap1.Axes.Pitch.Sensitivity := 0.2
+cMap1.Axes.Pitch.Deadzone := 15
+
+cMap1.Axes.Roll.AxisID := "X"
+cMap1.Axes.Roll.Sensitivity := 0.2
+cMap1.Axes.Roll.Deadzone := 15
+cMap1.Axes.Roll.AxisKeys := { pos:"e", neg:"q" }
+cMap1.Axes.Roll.SendModulationTime := 50    
+
+cMap1.Axes.Throttle.AxisID := "Z"
+cMap1.Axes.Throttle.Deadzone := 30 
+cMap1.Axes.Throttle.Sensitivity := 1
+cMap1.Axes.Throttle.AxisKeys := { pos: "w", neg:"s" }
+cMap1.Axes.Throttle.SendModulationTime := 50    
+; These adjust how long the keypress pulse interval is for analog 
+;conversions of Yaw and Thrust. The key will be pressed down a 
+;fraction of this time depending on analog input      
+cMap1.Axes.Throttle.MinSendDurationRatio := 0.40
+   
+cMap1.Hat.X := { pos:"d", neg:"a" }                                
+cMap1.Hat.Y := { pos:"space", neg:"c" }
+
+cMap1.Buttons.Joy1 := "LButton"
+cMap1.Buttons.Joy2 := "o"
+cMap1.Buttons.Joy3 := "1"
+cMap1.Buttons.Joy4 := "2"
+cMap1.Buttons.Joy5 := "3"
+cMap1.Buttons.Joy6 := "4"
+cMap1.Buttons.Joy7 := "5"
+cMap1.Buttons.Joy8 := "6"
+
+
+; EGSControlMap 2  
+; For more info on what to put in for keys, 
+; visit: https://www.autohotkey.com/docs/KeyList.htm
+; Profile 2 is set up to switch roll and yaw (leaning stick side
+; to side turns instead of rolls) and does not invert the joystick
+cMap2 := new EGSControlMap()
+cMap2.Axes.Yaw.AxisID := "X"
+cMap2.Axes.Yaw.Sensitivity := 0.2
+cMap2.Axes.Yaw.Deadzone := 15
+
+cMap2.Axes.Pitch.AxisID := "Y"
+cMap2.Axes.Pitch.Sensitivity := 0.2
+cMap2.Axes.Pitch.Deadzone := 15
+
+cMap2.Axes.Roll.AxisID := "R"
+cMap2.Axes.Roll.Sensitivity := 0.5
+cMap2.Axes.Roll.Deadzone := 20
+cMap2.Axes.Roll.AxisKeys := { pos:"e", neg:"q" }
+
+cMap2.Axes.Throttle.AxisID := "Z"
+cMap2.Axes.Throttle.Deadzone := 30 
+cMap2.Axes.Roll.Sensitivity := 1
+cMap2.Axes.Throttle.AxisKeys := { pos: "w", neg:"s" }
+
+cMap2.HatKeys.X := { pos:"d", neg:"a" }                                
+cMap2.HatKeys.Y := { pos:"space", neg:"c" }
+
+cMap1.Buttons.Joy1 := "LButton"
+cMap1.Buttons.Joy2 := "o"
+cMap1.Buttons.Joy3 := "1"
+cMap1.Buttons.Joy4 := "2"
+cMap1.Buttons.Joy5 := "3"
+cMap1.Buttons.Joy6 := "4"
+cMap1.Buttons.Joy7 := "5"
+cMap1.Buttons.Joy8 := "6"
+
+
+
 class EGSInterface {
 	;false is useful for testing
 	InGameProcessingOnly := true  
@@ -22,12 +100,6 @@ class EGSInterface {
 	;Button That Switches Between Profiles
 	Hotkey_CycleProfile := "-"             
 
-	; These adjust how long the keypress pulse interval is for analog 
-	;conversions of Yaw and Thrust. The key will be pressed down a 
-	;fraction of this time depending on analog input
-	AxisSendModulationTimeZ := 50    
-	AxisSendModulationTimeT := 50          
-	MinimumSendDurationRatioT := 0.40
 	
 	
 	
@@ -35,11 +107,13 @@ class EGSInterface {
 	ThrottleKeyState 	:= false
 	RollKeyState 		:= false
 	ThottleEnabled 		:= true     
-	CurrentProfile 		:= cMap1    
-	
+	CurrentProfileIndex	:= 1    
+	ProfileList 		:= [cMap1, cMap2]
 	
 	;Supresses joystick output unless this is the active window  
-	CheckSuspended => !WinActive(WindowName) && this.InGameProcessingOnly
+	CheckSuspended => !WinActive(this.WindowName) && this.InGameProcessingOnly
+	
+	CurrentProfile => this.ProfileList[this.CurrentProfileIndex}
 	
 	
 	static PressKey(key) {
@@ -48,6 +122,29 @@ class EGSInterface {
 	
 	static ReleaseKey(key) {
 		Send(Format("`{{1} up`}", key))
+	}
+	
+	static TransformAxis(axisData) {
+		;transform to 0.0-1.0 range
+		normInput := GetKeyState(axisData.JoyID . "Joy" . axisData.AxisID) * 0.01
+		;transform to -1-0-+1 range
+		dirIn := (normInput - 0.5) * 2
+		absDirIn := Abs(dirIn)
+		sign := (absDirIn / dirIn)
+		;apply deadzone shift		
+		deadzone := axisData.deadzone
+		dirOut := (absDirIn - deadzone) / (1 - deadzone) * sign
+		dirOut *= (this.CurrentProfile.InvertY) ? -1 : 1
+		return dirOut * sign < 0 ? 0 : dirOut
+	}
+
+	static ApplyRadialDeadzone(vec, deadzone) {
+		if(vec.magnitude < deadzone)
+			vec := HB_Vector2.zero;
+		else
+			vec := vec.Normalized.Multiply((vec.magnitude - deadzone) / (1 - deadzone))
+			
+		return vec
 	}
 	
 	
@@ -67,7 +164,7 @@ class EGSInterface {
 			this.HatKeys.y := [{down: "{" . hkY[1] . " down}", up: "{" . hkY[1] . " up}"}, {down: . "{" . hkY[2] . " down}", up: "{" . hkY[2] . " up}"}]
 		}
 		
-		physicalController.BindButtons()
+		physicalController.BindButtons(KEYSLIST)
 		
 		StartInputHandlers()
 	}
@@ -79,20 +176,19 @@ class EGSInterface {
 	}
 	
 	Callback_CycleProfiles() {
-		if (this.CurrentProfile = map1)
-			this.CurrentProfile := map2
-		else
-			this.CurrentProfile := map2
+		this.CurrentProfileIndex++
+		if (this.CurrentProfileIndex > this.ProfileList.Length)
+			this.CurrentProfileIndex := 1
 	}
 
 	; start 5ms timers that poll inputs
 	StartInputHandlers() {
-		SetTimer(this.physicalController.PollHat, 5)
-		SetTimer(this.physicalController.PollPitchYawAxes, 5)
-		SetTimer(this.physicalController.PollRollAxis, 5)
+		SetTimer(this.PollHat, 5)
+		SetTimer(this.PollMouseAxes, 5)
+		SetTimer(this.PollRollAxis, 5)
 		
 		if (GlobalEnableThrottleBinding = 1)
-			SetTimer(this.physicalController.PollThrottleAxis, 5)
+			SetTimer(this.PollThrottleAxis, 5)
 	}
 
 	PollHat() {
@@ -105,10 +201,9 @@ class EGSInterface {
 			old_state := HatState[A_Index]
 			if (old_state != new_state){
 				if (old_state)
-					Send(HatKeys[A_Index, old_state].up)
-					
+					EGSInterface.ReleaseKey(this.HatKeys[A_Index, old_state])
 				if (new_state)
-					Send(HatKeys[A_Index, new_state].down)
+					EGSInterface.PressKey(this.HatKeys[A_Index, old_state])
 					
 				HatState[A_Index] := new_state
 			}
@@ -116,62 +211,41 @@ class EGSInterface {
 	}
 	 
 	PollRollAxis() {
-		this.RollKeyState := ProcessAxisKeys(this.CurrentProfile.RollInputAxis,
-											RollKeys, 
-											this.CurrentProfile.RollDeadzone, 
-											this.AxisSendModulationTimeZ, 
-											this.RollKeyState, 
-											this.CurrentProfile.RollSensitivity)
+		this.RollKeyState := ProcessAxisKeys(this.CurrentProfile.Axes.Roll, this.RollKeyState)
 	}
 	 
 	PollThrottleAxis() {
-		this.ThrottleKeyState := ProcessAxisKeys(this.CurrentProfile.ThrottleInputAxis, 
-												ThottleKeys, 
-												this.CurrentProfile.ThrottleDeadzone, 
-												this.AxisSendModulationTimeT, 
-												this.ThrottleKeyState,
-												1, ;must be 1 for dead-reckoning
-												this.MinimumSendDurationRatioT, 
-												this.ThottleEnabled)
+		this.ThrottleKeyState := ProcessAxisKeys(this.CurrentProfile.Axes.Throttle, this.ThrottleKeyState, this.ThottleEnabled)
 	}
 	 
 	 
-	PollPitchYawAxes() {
+	PollMouseAxes() {
 		if (this.CheckSuspended)
 			return
-
 		; Get position of axis assigned for X, centered.
-		yawInput := GetKeyState(YawInputAxis) - 50  
-		yawDZ := this.CurrentProfile.YawDeadZone
-		yawSense := this.CurrentProfile.YawSensitivity
-		
+		xInput := EGSInterface.TransformAxis(this.CurrentProfile.Axes.Yaw)
 		; Get position of axis assigned for Y, centered and inverted (if required).
-		pitchInput := GetKeyState(PitchInputAxis) - 50 * (this.CurrentProfile.InvertY) ? -1 : 1
-		pitchDZ := this.CurrentProfile.PitchDeadzone
-		pitchSense := this.CurrentProfile.PitchSensitivity 
+		yInput := EGSInterface.TransformAxis(this.CurrentProfile.Axes.Pitch) 
 		
-		if (abs(yawInput) > yawDZ || abs(pitchInput) > pitchDZ)
+		if (abs(xInput) > 0 || abs(yInput) > 0)
 		{
 			;factor in deadzone and scale back up
-			mouseX := 0
-			if (yawInput > yawDZ)
-				mouseX := ((yawInput - yawDZ) * 50 / (50 - yawDZ)) * yawSense
-			else if (yawInput < 0 - yawDZ)
-				mouseX := ((yawInput + yawDZ) * 50 / (50 - yawDZ)) * yawSense
-	  
-			mouseY := 0
-			if (pitchInput > pitchDZ)
-				mouseY := ((pitchInput - pitchDZ) * 50 / (50 - pitchDZ)) * pitchSense
-			else if (pitchInput < 0 - pitchDZ)
-				mouseY := ((pitchInput + pitchDZ) * 50 / (50 - pitchDZ)) * pitchSense
-		  
+			mouseX := xInput * this.CurrentProfile.Axes.Yaw.Sensitivity
+			mouseY := yInput * this.CurrentProfile.Axes.Pitch.Sensitivity
 			DllCall("mouse_event", "uint", 1, "int", mouseX, "int", mouseY)
 		}
 	}
 	
-	ProcessAxisKeys(pInputAxis, pDeadzone, pKeyMap, pModulationTime, pKeyState, pSensitivity, pMinSendDurationRatio := 0, pEnabled := true) {
-		posKey := pKeyMap[2]
-		negKey := pKeyMap[1]
+	
+	ProcessAxisKeys(pInputAxis, pKeyState, pEnabled := true) {
+		
+		deadzone := pInputAxis.Deadzone
+		
+		minSendRatio := pInputAxis.MinSendDurationRatio
+		modTime := pInputAxis.SendModulationTime
+		
+		posKey := pInputAxis.AxisKeys.pos
+		negKey := pInputAxis.AxisKeys.neg
 		
 		;lost focus, release keys
 		if (this.CheckSuspended || !pEnabled) {
@@ -181,13 +255,12 @@ class EGSInterface {
 			}
 			return false
 		}
-		 ; Get raw position of axis.
-		axis := this.TransformAxis(GetKeyState(pInputAxis), pDeadzone) 
 		
+		axis := EGSInterface.TransformAxis(pInputAxis.Value) 
 		if (axis > 0)
-			selectedKey := pKeyMap[2]
+			selectedKey := posKey
 		else if (axis < 0)
-			selectedKey := pKeyMap[1]
+			selectedKey := negKey
 		else {
 			;axis in deadzone/released. If keystate active 
 			;then send 'up' signal for both keys
@@ -202,69 +275,19 @@ class EGSInterface {
 		SetKeyDelay(-1)  
 		
 		; just holds key down when at max versus pulsing it
-		if (abs(axis) >= 90) {
+		if (abs(axis) >= 0.9) {
 			EGSInterface.PressKey(selectedKey)
 			return true
 		}
 
-		val := (abs(axis - 50) - pDeadzone) / (50 - pDeadzone)
-		sendDurationRatio := pMinSendDurationRatio + val / (1 - pMinSendDurationRatio)
+		sendDurationRatio := minSendRatio + axis / (1 - minSendRatio)
 	 
 		EGSInterface.PressKey(selectedKey)
-		Sleep(sendDurationRatio * pModulationTime * pSensitivity)
+		Sleep(sendDurationRatio * modTime * pInputAxis.Sensitivity)
 		EGSInterface.PressKey(selectedKey)
-		Sleep((1 - sendDurationRatio) * pModulationTime * pSensitivity)
+		Sleep((1 - sendDurationRatio) * modTime * pInputAxis.Sensitivity)
+		
 		return pKeyState
 	}
-	
-	TransformAxis(rawIn, deadzone) {
-		pctIn := (rawIn / 100)
-		dirIn := (pctIn - 0.5) * 2
-		
-		return Abs(dirIn) < deadzone ? 0 : dirIn
-	}
-}
 
-ApplyRadialDeadzone(vec, deadzone) {
-	if(vec.magnitude < deadzone)
-		vec := HB_Vector2.zero;
-	else
-		vec := vec.Normalized.Multiply((vec.magnitude - deadzone) / (1 - deadzone))
-		
-	return vec
 }
-
-; ; Get raw position of axis.
-;rawAxis := GetKeyState(pInputAxis) 
-;
-;if (rawAxis > 50 + pDeadzone)
-;	selectedKey := pKeyMap[2]
-;else if (rawAxis < 50 - pDeadzone)
-;	selectedKey := pKeyMap[1]
-;else {
-;	;axis in deadzone/released. If keystate active 
-;	;then send 'up' signal for both keys
-;	if (pKeyState) {
-;		EGSInterface.SendKey(posKey, false)
-;		EGSInterface.SendKey(negKey, false)
-;	}
-;	return false
-;}
-;
-;; Avoid delays between keystrokes.
-;SetKeyDelay(-1)  
-;
-;; just holds key down when at max versus pulsing it
-;if (rawAxis > 90 || rawAxis < 10) {
-;	EGSInterface.SendKey(selectedKey, true)
-;	return true
-;}
-halfMax := 50
-val := (abs(x - halfMax) - pDeadzone) / (halfMax - pDeadzone)
-;sendDurationRatio := pMinSendDurationRatio + val / (1 - pMinSendDurationRatio)
-;
-;EGSInterface.SendKey(selectedKey, true)
-;Sleep(sendDurationRatio * pModulationTime * pSensitivity)
-;EGSInterface.SendKey(selectedKey, false)
-;Sleep((1 - sendDurationRatio) * pModulationTime * pSensitivity)
-;return pKeyState
