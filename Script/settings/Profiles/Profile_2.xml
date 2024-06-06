@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ControlMap>
+	<ProfileID>2</ProfileID>
+	<Buttons>
+		<Joy1>17,0</Joy1>
+		<Joy2>11,0</Joy2>
+		<Joy3>63,0</Joy3>
+		<Joy4>64,0</Joy4>
+		<Joy5>65,0</Joy5>
+		<Joy6>66,0</Joy6>
+		<Joy7>67,0</Joy7>
+		<Joy8>68,0</Joy8>
+	</Buttons>
+	<GameAxes>
+		<Yaw>
+			<GameInput type="mouseAxis">77,0</GameInput>
+			<ControllerMap>
+				<HardwareID>1133::49762</HardwareID>
+				<AxisID>X</AxisID>
+				<Sensitivity>0.2</Sensitivity>
+				<Deadzone>15</Deadzone>
+			</ControllerMap>
+		</Yaw>
+		<Pitch>
+			<GameInput type="mouseAxis">78,0</GameInput>
+			<ControllerMap>
+				<HardwareID>1133::49762</HardwareID>
+				<AxisID>Y</AxisID>
+				<Sensitivity>0.2</Sensitivity>
+				<Deadzone>15</Deadzone>
+			</ControllerMap>
+		</Pitch>
+		<Roll>
+			<GameInput type="kbKeys">
+				<pos>6,1</pos>
+				<neg>6,0</neg>
+			</GameInput>
+			<SendModulationTime>50</SendModulationTime>
+			<MinSendDurationRatio>0</MinSendDurationRatio>
+			<ControllerMap>
+				<HardwareID>1133::49762</HardwareID>
+				<AxisID>R</AxisID>
+				<Sensitivity>0.5</Sensitivity>
+				<Deadzone>20</Deadzone>
+			</ControllerMap>
+		</Roll>
+		<X>
+			<GameInput type="kbKeys">
+				<pos>1,0</pos>
+				<neg>1,1</neg>
+			</GameInput>
+			<ControllerMap>
+				<HardwareID>1133::49762</HardwareID>
+				<AxisID>POVX</AxisID>
+				<Sensitivity>0</Sensitivity>
+				<Deadzone>0</Deadzone>
+			</ControllerMap>
+		</X>
+		<Y>
+			<GameInput type="kbKeys">
+				<pos>6,1</pos>
+				<neg>6,0</neg>
+			</GameInput>
+			<ControllerMap>
+				<HardwareID>1133::49762</HardwareID>
+				<AxisID>POVY</AxisID>
+				<Sensitivity>0</Sensitivity>
+				<Deadzone>0</Deadzone>
+			</ControllerMap>
+		</Y>
+		<Z>
+			<GameInput type="kbKeys">
+				<pos>0,0</pos>
+				<neg>0,1</neg>
+			</GameInput>
+			<SendModulationTime>50</SendModulationTime>
+			<MinSendDurationRatio>0.4</MinSendDurationRatio>
+			<ControllerMap>
+				<HardwareID>1133::49762</HardwareID>
+				<AxisID>Z</AxisID>
+				<Sensitivity>1</Sensitivity>
+				<Deadzone>30</Deadzone>
+			</ControllerMap>
+		</Z>
+	</GameAxes>
+</ControlMap>
